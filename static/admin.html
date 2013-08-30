@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Blog admin</title>
+	<link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+	<style type="text/css">
+		.lift { margin-top:-20px; }
+		#posts tr { cursor: pointer; }
+	</style>
+
+	<script type="text/javascript">
+		function Row(cellTextArray) {
+			var row = document.createElement('tr');
+			for (var c in cellTextArray) {
+				var cell = document.createElement('td');
+				cell.innerText = cellTextArray[c];
+				row.appendChild(cell);
+			}
+			return row;
+		}
+
+		function populateTable(entries) {
+			$('#posts > tbody').empty();
+			for (var e in entries) {
+				var entry = entries[e];
+				var row = new Row([
+					entry.Title + "\n" +
+						new Date(entry.Date).toLocaleString(),
+					entry.Lead,
+				]);
+				if (entry.Hidden) row.className = "success"; // Green background
+				row.id = entry.ID;
+				row.addEventListener('click', function() { loadPost(this.id); });
+				$('#posts > tbody:last').append(row);
+			}
+		}
+
+		function loadPost(id) {
+			$.ajax({
+				url: '/load',
+				type: 'POST',
+				data: { id : id },
+				success: function(entry) {
+					var obj = $.parseJSON(entry);
+					obj.ID = id; // The '/load' function doesn't return an ID
+					$('#hint').html("Update entry");
+					showModal(obj);
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					console.log(thrownError);
+				}
+			});
+		}
+
+		function savePost() {
+			$('#postModal').off('hide.bs.modal', confirmHide);
+			$('#postModal').modal('hide');
+			$('#postModal').on('hide.bs.modal', confirmHide);
+
+			$('#posts > tbody').empty();
+			$('#posts > tbody').html("<tr><td colspan=2>Saving post...</td></tr>")
+
+			var data = {
+				id:      $('#postID').val(),
+				date:    $('#postDate').val(),
+				Title:   $('#inputTitle').val(),
+				Content: $('#inputContent').val()
+			};
+
+			if ( $('#inputHidden').prop('checked') )
+				data.Hidden = true;
+
+			$.ajax({
+				url: '/post',
+				type: 'POST',
+				data: data,
+				success: function(status) {
+					loadList(0);
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					alert("Error saving post. Check console.");
+					console.log(thrownError);
+				}
+			});
+
+		}
+
+		function showModal(entry) {
+			var content = "";
+			if (entry.Lead != null) content += entry.Lead;
+			if (entry.Content != null) content += entry.Content;
+			$('#postID').val(entry.ID);
+			$('#postDate').val(new Date(entry.Date).toJSON());
+			$('#inputTitle').val(entry.Title);
+			$('#inputContent').val(content);
+			$('#inputHidden').prop('checked', entry.Hidden);
+			$('#postModal').modal('show');
+		}
+
+		function newPost() {
+			$('#hint').html("Post new entry");
+			showModal( { Hidden: false } );
+		}
+
+		function confirmLeave(e) {
+			if ($('#postModal:visible').length) {
+				return 'Changes will be lost, are you sure?';
+			}
+		}
+
+		function confirmHide(e) {
+			if (! confirm("Choose 'OK' to close without saving, 'Cancel' to continue editing"))
+				e.preventDefault();
+		}
+
+		function loadList(offset) {
+			$.ajax({
+				url: '/list',
+				type: 'GET',
+				data: {
+					offset: offset,
+					clean: true
+				},
+				success: function(entries) {
+					populateTable($.parseJSON(entries));
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					console.log(thrownError);
+				}
+			});
+
+		}
+
+		function init() {
+			$('#postModal').on('hide.bs.modal', confirmHide);
+			$(window).bind('beforeunload', confirmLeave);
+			$('form').submit( function() {
+				$(window).unbind('beforeunload', confirmLeave);
+			});
+			loadList(0);
+		}
+	</script>
+</head>
+<body onload=init()>
+<div class="container">
+	<table class="table table-hover" id="posts">
+		<thead>
+			<tr>
+				<th width=25%>Title</th>
+				<th>Snippet</th>
+			</tr>
+		</thead>
+		<tbody>
+		</tbody>
+	</table>
+</div>
+	<a href="javascript:newPost()" class="btn btn-primary btn">New post</a>
+	<div class="modal fade" id="postModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		<div class="modal-dialog lift" style="width:100%;">
+			<div class="modal-content">
+				<form class="form-horizontal" action="javascript:savePost()" role="form">
+					<input type="hidden" name="id" id="postID" />
+					<input type="hidden" name="date" id="postDate" />
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+						<h4 class="modal-title" id="hint"></h4>
+					</div>
+					<div class="modal-body">
+	        	
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="inputTitle">Title</label>
+							<div class="col-sm-11">
+								<input type="text" class="form-control" name="Title" id="inputTitle" placeholder="Title">
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="inputContent">Content</label>
+							<div class="col-sm-11">
+								<textarea class="form-control" name="Content" id="inputContent" rows=24></textarea>
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="inputHidden">Hidden</label>
+							<div class="col-sm-11">
+								<input type="checkbox" class="btn" name="Hidden" id="inputHidden">
+							</div>
+						</div>
+	        	
+					</div>
+					<div class="modal-footer lift">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+						<button type="submit" class="btn btn-primary">Save</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>		
+	<script src="/static/jquery/jquery-2.0.3.min.js"></script>
+	<script src="/static/bootstrap/js/bootstrap.min.js"></script>
+</body>
+</html>
