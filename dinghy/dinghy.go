@@ -464,6 +464,14 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 		Template: defaultViewTemplateHTML,
 	}
 
+	if r.FormValue("Title") != "" {
+		b.Title = r.FormValue("Title")
+	}
+
+	if r.FormValue("Author") != "" {
+		b.Author = r.FormValue("Author")
+	}
+
 	_, err = datastore.Put(c, k, &b)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
