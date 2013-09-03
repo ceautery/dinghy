@@ -65,10 +65,11 @@
 
 			var data = {
 				id:      $('#postID').val(),
-				date:    $('#postDate').val(),
 				Title:   $('#inputTitle').val(),
 				Content: $('#inputContent').val()
 			};
+
+			data.date = $('#postDate').val() == "" ? new Date().toJSON() : $('#postDate').val();
 
 			if ( $('#inputHidden').prop('checked') )
 				data.Hidden = true;
@@ -93,7 +94,8 @@
 			if (entry.Lead != null) content += entry.Lead;
 			if (entry.Content != null) content += entry.Content;
 			$('#postID').val(entry.ID);
-			$('#postDate').val(new Date(entry.Date).toJSON());
+			var date = entry.Date == null ? "" : new Date(entry.Date).toJSON();
+			$('#postDate').val(date);
 			$('#inputTitle').val(entry.Title);
 			$('#inputContent').val(content);
 			$('#inputHidden').prop('checked', entry.Hidden);
@@ -102,7 +104,9 @@
 
 		function newPost() {
 			$('#hint').html("Post new entry");
-			showModal( { Hidden: false } );
+			showModal({
+				Hidden: false
+			});
 		}
 
 		function confirmLeave(e) {
