@@ -12,6 +12,9 @@
 	</style>
 
 	<script type="text/javascript">
+		// Switching a post from hidden to unhidden moves the date to Date.now()
+		var wasHidden = false;
+
 		function Row(cellTextArray) {
 			var row = document.createElement('tr');
 			for (var c in cellTextArray) {
@@ -99,6 +102,7 @@
 			$('#inputTitle').val(entry.Title);
 			$('#inputContent').val(content);
 			$('#inputHidden').prop('checked', entry.Hidden);
+			wasHidden = entry.Hidden;
 			$('#postModal').modal('show');
 		}
 

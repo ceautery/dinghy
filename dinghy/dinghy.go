@@ -1,4 +1,4 @@
-package hello
+package dinghy
 
 import (
 	"appengine"
@@ -7,11 +7,11 @@ import (
 	"appengine/user"
 	"encoding/json"
 	"fmt"
-	"text/template"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 )
 
@@ -42,9 +42,37 @@ func init() {
 	http.HandleFunc("/list", list)
 	http.HandleFunc("/flush", flush) // Flush memcache
 
+	// oauth
+//	http.HandleFunc("/oauth2callback", callback)
+
 	// Normal blog viewing
 	http.HandleFunc("/", view)
 }
+
+//func callback() {
+// Client ID:           16812864608.apps.googleusercontent.com
+// Email address:       16812864608@developer.gserviceaccount.com
+// Client secret:       SgrCoX8AU6aMIrc7fY_aF-ZX
+// Redirect URIs:       https://curtisautery.appspot.com/oauth2callback
+// JavaScript origins:  https://curtisautery.appspot.com
+
+// https://accounts.google.com/o/oauth2/auth
+// ?state=/profile
+// &redirect_uri=https://oauth2-login-demo.appspot.com/code
+// &response_type=code
+// &client_id=812741506391.apps.googleusercontent.com
+// &approval_prompt=force
+// &scope=https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile
+
+// https://picasaweb.google.com/data/feed/api/user/ceautery
+// album ID -> gphoto:id = 5551425951876431345
+// 
+// https://picasaweb.google.com/data/feed/api/user/ceautery/albumid/5551425951876431345
+// 5845231177108333697
+
+// Markdown, oauth, picasa
+
+//}
 
 func view(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -75,7 +103,11 @@ func view(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	viewTemplate := template.Must(template.New("view").Parse(b.Template))
+	var fmap = template.FuncMap{
+		"markdown": markdown,
+	}
+
+	viewTemplate := template.Must(template.New("view").Funcs(fmap).Parse(b.Template))
 
 	//TODO: send template output to memcache for given path, then output to http writer
 
@@ -257,12 +289,14 @@ func post(w http.ResponseWriter, r *http.Request) {
 	}
 
 	content := r.FormValue("Content")
-	i := strings.Index(content, "</p>")
-
+	re := regexp.MustCompile( `(.*\n){5}` )
+	five := re.FindStringIndex(content)
+	
+	var i int
 	switch {
-	case i > -1 && i < 496:
-		i += 4
-	case len(content) <= 500:
+	case five != nil && five[1] < 500:
+		i = five[1]
+	case len(content) < 500:
 		i = len(content)
 	default:
 		i = 500
@@ -446,7 +480,7 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 			</h3>
 			<h4>{{.Date.Format "Monday, January 02, 2006"}}</h4>
 			<div id="body">
-				{{.Lead}}{{.Content}}
+				{{markdown .Lead .Content}}
 			</div>
 			<hr />
 		{{end}}
