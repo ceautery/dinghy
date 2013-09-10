@@ -5,6 +5,7 @@ import (
 	"appengine/datastore"
 	"appengine/memcache"
 	"appengine/user"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -18,8 +19,8 @@ import (
 type Post struct {
 	Title   string
 	Lead    string
-	Content string `datastore:",noindex"`
-	ID      int64  `datastore:"-"`
+	Content string    `datastore:",noindex"`
+	ID      int64     `datastore:"-"`
 	Date    time.Time
 	Hidden	bool
 }
@@ -56,6 +57,17 @@ func view(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	// Trim leading slash and possible trailing slash from path
+	path := strings.TrimSuffix(r.URL.Path[1:], "/")
+
+	item, err := memcache.Get(c, "post." + path)
+	if err == nil {
+		w.Write(item.Value)
+		w.Write([]byte("(cached)"))
+		return
+	}
+
 	if r.URL.Path == "/" {
 		// Get Leads for recent posts
 		// TODO: Play with r.URL.RawQuery for custom searches
@@ -66,8 +78,6 @@ func view(w http.ResponseWriter, r *http.Request) {
 		}
 		b.Posts = p
 	} else {
-		// Trim leading slash and possible trailing slash from path
-		path := strings.TrimSuffix(r.URL.Path[1:], "/")
 		b.Posts = make([]Post, 1)
 
 		p, err := getPost(path, c)
@@ -81,25 +91,25 @@ func view(w http.ResponseWriter, r *http.Request) {
 	var fmap = template.FuncMap{
 		"markdown": markdown,
 	}
-
 	viewTemplate := template.Must(template.New("view").Funcs(fmap).Parse(b.Template))
 
-	//TODO: send template output to memcache for given path, then output to http writer
-
-	if err := viewTemplate.Execute(w, b); err != nil {
+	var buffer bytes.Buffer
+	if err := viewTemplate.Execute(&buffer, b); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+
+	item = &memcache.Item {
+	   Key: "post." + path,
+	   Value: buffer.Bytes(),
+	}
+	memcache.Set(c, item)
+	w.Write(item.Value)
 }
 
 func getPost(path string, c appengine.Context) (Post, error) {
 	var id int64
 	var err error
 	p := Post{}
-
-	_, err = memcache.Gob.Get(c, "post." + path, &p)
-	if err == nil {
-		return p, nil
-	}
 
 	var k *datastore.Key
 
@@ -122,14 +132,6 @@ func getPost(path string, c appengine.Context) (Post, error) {
 
 	if ! user.IsAdmin(c) && p.Hidden {
 		return Post{ Title: "This page is currently unavailable" }, nil
-	}
-
-	if ! user.IsAdmin(c) {
-		item := &memcache.Item {
-		   Key: "post." + path,
-		   Object: p,
-		}
-		memcache.Gob.Set(c, item)
 	}
 
 	return p, nil

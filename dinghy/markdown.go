@@ -125,7 +125,7 @@ func formParagraphs(s string) string {
 }
 
 func doBlockQuotes(s string) string {
-	re := regexp.MustCompile( `\n*(> .+\n(.+\n)*\n*)+` )
+	re := regexp.MustCompile( `\n+(> .+\n(.+\n)*\n*)+` )
 	s = re.ReplaceAllStringFunc(s, func(m string) string {
 		m = strings.TrimSpace(m)
 		var buffer bytes.Buffer
@@ -312,27 +312,34 @@ func isImage(s string) bool {
 	return false
 }
 
-func getLink(img bool, url, text, title string) string {
+func getLink(img bool, addr, text, title string) string {
+	// Check for mailto urls, and encode them
+	u, err := url.Parse(addr)
+	if err == nil && u.Scheme == "mailto" {
+		addr = encodeEmailAddress(addr)
+	}
+
+
 	// Make all link URLs safe from later strong/em replace. This should be safe
 	// since * and _ aren't allowed in domain names, and some basic testing
 	// showed that web servers don't seem to mind query strings being URL
 	// escaped. I imagine there are edge cases where I am dead-wrong about this,
 	// and if I come across one (and please report one if you find it), I'll add
 	// an md5 replace for links as well as blocks. Until then...
-	url = strings.Replace(url, `_`, `%5F`, -1)
-	url = strings.Replace(url, `*`, `%2A`, -1)
+	addr = strings.Replace(addr, `_`, `%5F`, -1)
+	addr = strings.Replace(addr, `*`, `%2A`, -1)
 
 	if img {
 		if title == "" {
-			return `<img src="` + url + `" alt="` + text + `" />`
+			return `<img src="` + addr + `" alt="` + text + `" />`
 		} else {
-			return `<img src="` + url + `" alt="` + text + `" title="` + title +`" />`
+			return `<img src="` + addr + `" alt="` + text + `" title="` + title +`" />`
 		}
 	} else {
 		if title == "" {
-			return `<a href="` + url + `">` + text + `</a>`
+			return `<a href="` + addr + `">` + text + `</a>`
 		} else {
-			return `<a href="` + url + `" title="` + title +`">` + text + `</a>`
+			return `<a href="` + addr + `" title="` + title +`">` + text + `</a>`
 		}
 	}
 }
@@ -395,7 +402,7 @@ func encodeEmailAddress(s string) string {
 	var buffer bytes.Buffer
 	var r int
 	for _,v := range b {
-		if v == 64 { // always encode @
+		if v == 64 || v == 58 { // always encode @ and :
 			r = rand.Intn(2) + 1
 		} else {
 			r = rand.Intn(3)
