@@ -20,8 +20,8 @@ Stretching the analogy a little further, your writing is the ship. The important
 
 ##Goals
 
-* Flesh out admin interface to allow editing blog details
-This should be completed in the next build. I intended to have the user edit blog details, including the layout template, from the App Engine datastore viewer page, however it turns out that editing text fields is unsupported there, even though it works famously in the development app server.
+* Flesh out admin interface to allow editing the blog details and display template. 
+This should be completed in the next build.
 * Add installation instructions
 * Develop API system
 * Add support for Picasa and Flickr shortlinks

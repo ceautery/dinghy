@@ -49,31 +49,6 @@ func init() {
 	http.HandleFunc("/", view)
 }
 
-//func callback() {
-// Client ID:           16812864608.apps.googleusercontent.com
-// Email address:       16812864608@developer.gserviceaccount.com
-// Client secret:       SgrCoX8AU6aMIrc7fY_aF-ZX
-// Redirect URIs:       https://curtisautery.appspot.com/oauth2callback
-// JavaScript origins:  https://curtisautery.appspot.com
-
-// https://accounts.google.com/o/oauth2/auth
-// ?state=/profile
-// &redirect_uri=https://oauth2-login-demo.appspot.com/code
-// &response_type=code
-// &client_id=812741506391.apps.googleusercontent.com
-// &approval_prompt=force
-// &scope=https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile
-
-// https://picasaweb.google.com/data/feed/api/user/ceautery
-// album ID -> gphoto:id = 5551425951876431345
-// 
-// https://picasaweb.google.com/data/feed/api/user/ceautery/albumid/5551425951876431345
-// 5845231177108333697
-
-// Markdown, oauth, picasa
-
-//}
-
 func view(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	b, err := getBlogInfo(c)
