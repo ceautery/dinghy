@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"regexp"
 	"strconv"
@@ -42,6 +43,7 @@ func init() {
 	http.HandleFunc("/init", defaults)
 	http.HandleFunc("/list", list)
 	http.HandleFunc("/flush", flush) // Flush memcache
+	http.HandleFunc("/preview", preview)
 
 	// oauth
 //	http.HandleFunc("/oauth2callback", callback)
@@ -49,6 +51,42 @@ func init() {
 	// Normal blog viewing
 	http.HandleFunc("/", view)
 }
+
+func writePost(w io.Writer, b Blog) error {
+	var fmap = template.FuncMap{
+		"markdown": markdown,
+	}
+	viewTemplate := template.Must(template.New("view").Funcs(fmap).Parse(b.Template))
+
+	if err := viewTemplate.Execute(w, b); err != nil {
+		return err
+	}
+	return nil
+}
+
+// Preview is called from admin.html, which sends a form post that preview
+// displays as a blog entry, without interacting with memcache or the datastore
+func preview(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	b, err := getBlogInfo(c)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	b.Posts = make([]Post, 1)
+	b.Posts[0] = Post{
+		Title:   r.FormValue("Title"),
+		Date:    time.Now(),
+		Lead:    "",
+		Content: r.FormValue("Content"),
+	}
+
+	if err := writePost(w, b); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 
 func view(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
@@ -61,11 +99,13 @@ func view(w http.ResponseWriter, r *http.Request) {
 	// Trim leading slash and possible trailing slash from path
 	path := strings.TrimSuffix(r.URL.Path[1:], "/")
 
-	item, err := memcache.Get(c, "post." + path)
-	if err == nil {
-		w.Write(item.Value)
-		w.Write([]byte("(cached)"))
-		return
+	// Admin users shouldn't interact with memcache, as this can expose hidden posts to non-admins
+	if ! user.IsAdmin(c) {
+		item, err := memcache.Get(c, "post." + path)
+		if err == nil {
+			w.Write(item.Value)
+			return
+		}
 	}
 
 	if r.URL.Path == "/" {
@@ -88,17 +128,20 @@ func view(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var fmap = template.FuncMap{
-		"markdown": markdown,
+	// Admin users shouldn't write to memcache, as they can see hidden items.
+	if user.IsAdmin(c) {
+		if err := writePost(w, b); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
 	}
-	viewTemplate := template.Must(template.New("view").Funcs(fmap).Parse(b.Template))
 
 	var buffer bytes.Buffer
-	if err := viewTemplate.Execute(&buffer, b); err != nil {
+	if err := writePost(&buffer, b); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 
-	item = &memcache.Item {
+	item := &memcache.Item {
 	   Key: "post." + path,
 	   Value: buffer.Bytes(),
 	}
@@ -160,22 +203,7 @@ func getBlogInfo(c appengine.Context) (Blog, error) {
 }
 
 func getRecentPosts(c appengine.Context) ([]Post, error) {
-	var err error
-	p := make([]Post, 0, 10)
-
-	_, err = memcache.Gob.Get(c, "recent", &p)
-	if err == nil {
-		return p, nil
-	}
-
-	p, err = getPosts(10, 0, true, c)
-	if err == nil && ! user.IsAdmin(c) {
-		item := &memcache.Item {
-		   Key: "recent",
-		   Object: p,
-		}
-		memcache.Gob.Set(c, item)
-	}
+	p, err := getPosts(10, 0, true, c)
 	return p, err
 }
 
@@ -220,14 +248,7 @@ func flush(w http.ResponseWriter, r *http.Request) {
 
 func list(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	p := make([]Post, 0, 10)
-	var err error
-
-	if r.FormValue("clean") == "" {
-		p, err = getRecentPosts(c)
-	} else {
-		p, err = getPosts(10, 0, true, c)
-	}
+	p, err := getRecentPosts(c)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
