@@ -347,17 +347,8 @@ func post(w http.ResponseWriter, r *http.Request) {
 }
 
 func defaults(w http.ResponseWriter, r *http.Request) {
-	c   := appengine.NewContext(r)
-	k   := datastore.NewKey(c, "Blog", "singleton", 0, nil)
-	b   := Blog{}
-	err := datastore.Get(c, k, &b)
-
-	if err == nil || err != datastore.ErrNoSuchEntity {
-		msg := "Failed to initialize blog defaults. Make sure Blog datastore kind does not already exist"
-		http.Error(w, msg, http.StatusInternalServerError)
-		return
-	}
-
+	// First, define the default template. If this is a naked call to "/init",
+	// or if the form field "Template" is blank, this template will be used
 	const defaultViewTemplateHTML = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -489,19 +480,49 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 </body>
 </html>
 `
+	c   := appengine.NewContext(r)
+	k   := datastore.NewKey(c, "Blog", "singleton", 0, nil)
+	b   := Blog{}
+
+	// If we've received a form post, assume this is an update...
+	if r.FormValue("Title") != "" {
+		b = Blog{
+			Description: r.FormValue("Description"),
+			Author: r.FormValue("Author"),
+			Title: r.FormValue("Title"),
+		}
+
+		if r.FormValue("Template") == "" {
+			b.Template = defaultViewTemplateHTML
+		} else {
+			b.Template = r.FormValue("Template")
+		}
+
+		_, err := datastore.Put(c, k, &b)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprint(w, "success")
+		return
+	}
+
+	// ...otherwise, init blog to defaults, including a dummy "About" post. This
+	// will fail if the "Blog" kind already exists in the datastore. Before
+	// continuing, we need an explicit "No such entity" error when querying the
+	// datastore for the Blog singleton.
+	err := datastore.Get(c, k, &b)
+	if err == nil || err != datastore.ErrNoSuchEntity {
+		msg := "Failed to initialize blog defaults. Make sure Blog datastore kind does not already exist"
+		http.Error(w, msg, http.StatusInternalServerError)
+		return
+	}
+
 	b = Blog{
-		Description: "A lightweight blog engine using Go, GAE, Bootstrap, and jQuery",
+		Description: "My awesome blog",
 		Author: "Blog author",
 		Title: "Blog title",
 		Template: defaultViewTemplateHTML,
-	}
-
-	if r.FormValue("Title") != "" {
-		b.Title = r.FormValue("Title")
-	}
-
-	if r.FormValue("Author") != "" {
-		b.Author = r.FormValue("Author")
 	}
 
 	_, err = datastore.Put(c, k, &b)
