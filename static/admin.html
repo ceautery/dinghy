@@ -130,7 +130,7 @@
 				e.preventDefault();
 		}
 
-		function loadList(offset) {
+		function loadList(offset, secondAttempt) {
 			$.ajax({
 				url: '/list',
 				type: 'GET',
@@ -138,7 +138,23 @@
 					offset: offset,
 				},
 				success: function(entries) {
-					populateTable($.parseJSON(entries));
+					if (entries == '[]' && offset == 0) {
+						if (secondAttempt == null) {
+							initializeBlog();
+						} else {
+							var msg = " \
+Blog initialization succeeded, which should have created an\n \
+\"About\" post, however your post count is still 0. There may\n \
+be a problem communicating with your datastore, or this\n \
+may be a transient problem due to timing, and refreshing\n \
+this page will show the \"About\" post. Please check the\n \
+status of the \"Blog\" and \"Post\" datastore kinds, and then try\n \
+setting up your blog again if necessary.";
+							alert(msg);
+						}
+					} else {
+						populateTable($.parseJSON(entries));
+					}
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
 					console.log(thrownError);
@@ -147,13 +163,27 @@
 
 		}
 
+		function initializeBlog() {
+			$('.container').append('<div id="initMsg" class="alert alert-info">Initializing blog</div>');
+			$.ajax({
+				url: '/init',
+				type: 'GET',
+				success: function(status) {
+					$('#initMsg').remove();
+					loadList(0, true);
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					console.log(thrownError);
+					$('#initMsg').removeClass('alert-info').addClass('alert-danger');
+					$('#initMsg').html("Initialization failed: " + thrownError);
+				}
+			});
+
+		}
+
 		function init() {
 			$('#postModal').on('hide.bs.modal', confirmHide);
 			$(window).bind('beforeunload', confirmLeave);
-			// Unbinding the warning message on form submits may not be necessary.
-			// $('form').submit( function() {
-			// 	$(window).unbind('beforeunload', confirmLeave);
-			// });
 			loadList(0);
 		}
 	</script>
@@ -172,6 +202,8 @@
 	</table>
 </div>
 	<a href="javascript:newPost()" class="btn btn-primary btn">New post</a>
+	<a href="javascript:void(0)" class="btn btn-primary btn">Configure</a>
+	<a href="/" class="btn btn-primary btn">View Blog</a>
 	<div class="modal fade" id="postModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
 		<div class="modal-dialog lift" style="width:100%;">
 			<div class="modal-content">

@@ -8,6 +8,7 @@ handlers:
   static_files: static/admin.html
   upload: static/admin.html
   login: admin
+  secure: always
 
 - url: /favicon.ico
   static_files: static/favicon.ico

@@ -33,6 +33,7 @@ type Blog struct {
 	Title       string `datastore:",noindex"`
 	Template    string `datastore:",noindex"`
 	Posts       []Post `datastore:"-"`
+	Admin       bool   `datastore:"-"`
 }
 
 func init() {
@@ -90,22 +91,33 @@ func preview(w http.ResponseWriter, r *http.Request) {
 
 func view(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
-	b, err := getBlogInfo(c)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
 
 	// Trim leading slash and possible trailing slash from path
 	path := strings.TrimSuffix(r.URL.Path[1:], "/")
 
-	// Admin users shouldn't interact with memcache, as this can expose hidden posts to non-admins
+	// Non-admins should get raw HTML from memcache if possible, and avoid
+	// touching the datastore at all.
 	if ! user.IsAdmin(c) {
 		item, err := memcache.Get(c, "post." + path)
 		if err == nil {
 			w.Write(item.Value)
 			return
 		}
+	}
+
+	b, err := getBlogInfo(c)
+	if user.IsAdmin(c) {
+		b.Admin = true
+	}
+
+	if err != nil {
+		if err == datastore.ErrNoSuchEntity {
+			w.Write( []byte(`<html><body>This blog has not been set up. If you are the owner, you can visit the 
+				<a href="/admin">administrator page</a> to get started</body></html>`) )
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
 	}
 
 	if r.URL.Path == "/" {
@@ -449,6 +461,9 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 				</ul>
 				<ul class="nav navbar-nav navbar-right">
 					<li id="About"><a href="/1">About</a></li>
+					{{if .Admin}}
+						<li><a href="/admin">Admin</a></li>
+					{{end}}
 				</ul>
 			</div>
 		</div>
