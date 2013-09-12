@@ -47,6 +47,7 @@ func init() {
 	http.HandleFunc("/preview", preview)
 	http.HandleFunc("/info", info)
 	http.HandleFunc("/verify", verifyTemplate)
+	http.HandleFunc("/delete", deletePost)
 
 	// oauth
 //	http.HandleFunc("/oauth2callback", callback)
@@ -390,6 +391,24 @@ func verifyTemplate(w http.ResponseWriter, r *http.Request) {
 
 	_, err := template.New("config").Funcs(fmap).Parse( r.FormValue("Template") )
 	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprint(w, "success")
+}
+
+func deletePost(w http.ResponseWriter, r *http.Request) {
+	c := appengine.NewContext(r)
+	memcache.Flush(c)
+
+	id, err := strconv.ParseInt(r.FormValue("ID"), 10, 64)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	k := datastore.NewKey(c, "Post", "", id, nil)
+	if err := datastore.Delete(c, k); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

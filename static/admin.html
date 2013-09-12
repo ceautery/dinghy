@@ -84,6 +84,36 @@
 			$('#previewForm').submit();
 		}
 
+		function deletePost() {
+			var msg = "Deleting a post cannot be undone.\n Are you sure you wish \
+				to delete this post?\n\n \
+				Choose 'OK' to delete, 'Cancel' to continue editing";
+
+			if (! confirm(msg))
+				return;
+
+			if ( $('#postID').val() == "" ) {
+				// If the post was never saved, no datastore action is needed.
+				// Just close the dialog box, and we're done.
+				hideModal();
+				return;
+			}
+
+			$.ajax({
+				url: '/delete',
+				method: 'POST',
+				data: { ID: $('#postID').val() },
+				success: function(status) {
+					hideModal();
+					loadList(0);
+				},
+				error: function (xhr, ajaxOptions, thrownError) {
+					alertAndLog("Error deleting post.", xhr);
+				}
+			});
+
+		}
+
 		function verifyTemplate() {
 			// If template is blank, default template from dinghy.go will be
 			// used, so nothing to verify
@@ -110,10 +140,14 @@
 			alert(msg);
 		}
 
+		function hideModal() {
+			$('.modal').off('hide.bs.modal', confirmHide);
+			$('.modal').modal('hide');
+			$('.modal').on('hide.bs.modal', confirmHide);
+		}
+
 		function saveConfig() {
-			$('#configModal').off('hide.bs.modal', confirmHide);
-			$('#configModal').modal('hide');
-			$('#configModal').on('hide.bs.modal', confirmHide);
+			hideModal();
 
 			var data = {
 				Title:       $('#blogTitle').val(),
@@ -134,9 +168,7 @@
 		}
 
 		function savePost() {
-			$('#postModal').off('hide.bs.modal', confirmHide);
-			$('#postModal').modal('hide');
-			$('#postModal').on('hide.bs.modal', confirmHide);
+			hideModal();
 
 			$('#posts > tbody').empty();
 			$('#posts > tbody').html("<tr><td colspan=2>Saving post...</td></tr>")
@@ -188,7 +220,7 @@
 		}
 
 		function confirmLeave(e) {
-			if ($('#postModal:visible').length || $('#configModal:visible').length) {
+			if ($('.modal:visible').length) {
 				return 'Changes will be lost, are you sure?';
 			}
 		}
@@ -251,8 +283,7 @@ setting up your blog again if necessary.";
 		}
 
 		function init() {
-			$('#postModal').on('hide.bs.modal', confirmHide);
-			$('#configModal').on('hide.bs.modal', confirmHide);
+			$('.modal').on('hide.bs.modal', confirmHide);
 			$(window).bind('beforeunload', confirmLeave);
 			loadList(0);
 		}
@@ -281,7 +312,7 @@ setting up your blog again if necessary.";
 					<input type="hidden" name="id" id="postID" />
 					<input type="hidden" name="date" id="postDate" />
 					<div class="modal-header">
-						<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+						<span class="glyphicon glyphicon-trash close" onclick="deletePost()"></span>
 						<h4 class="modal-title" id="hint"></h4>
 					</div>
 					<div class="modal-body">
