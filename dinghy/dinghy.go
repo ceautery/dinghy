@@ -41,10 +41,12 @@ func init() {
 	// post and init should have "login: admin" security in app.yaml
 	http.HandleFunc("/load", load)
 	http.HandleFunc("/post", post)
-	http.HandleFunc("/init", defaults)
+	http.HandleFunc("/init", config)
 	http.HandleFunc("/list", list)
 	http.HandleFunc("/flush", flush) // Flush memcache
 	http.HandleFunc("/preview", preview)
+	http.HandleFunc("/info", info)
+	http.HandleFunc("/verify", verifyTemplate)
 
 	// oauth
 //	http.HandleFunc("/oauth2callback", callback)
@@ -192,6 +194,11 @@ func getPost(path string, c appengine.Context) (Post, error) {
 	return p, nil
 }
 
+// getBlogInfo is called inline from "/view", returning the results to the
+// display template. Since it is called from every non-memcached request for a
+// post, it first attempts to pull a gob-encoded Blog object from memcache. This
+// is different from "func info", which is for an admin Ajax call, and always
+// reads from the datastore.
 func getBlogInfo(c appengine.Context) (Blog, error) {
 	var err error
 	b := Blog{}
@@ -267,6 +274,24 @@ func list(w http.ResponseWriter, r *http.Request) {
 	}
 
 	j, err := json.Marshal(p)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Fprintf(w, "%s", j)
+}
+
+func info(w http.ResponseWriter, r *http.Request) {
+	b := Blog{}
+	c := appengine.NewContext(r)
+	k := datastore.NewKey(c, "Blog", "singleton", 0, nil)
+	if err := datastore.Get(c, k, &b); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	j, err := json.Marshal(b)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -358,7 +383,20 @@ func post(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, "success")
 }
 
-func defaults(w http.ResponseWriter, r *http.Request) {
+func verifyTemplate(w http.ResponseWriter, r *http.Request) {
+	var fmap = template.FuncMap{
+		"markdown": markdown,
+	}
+
+	_, err := template.New("config").Funcs(fmap).Parse( r.FormValue("Template") )
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	fmt.Fprint(w, "success")
+}
+
+func config(w http.ResponseWriter, r *http.Request) {
 	// First, define the default template. If this is a naked call to "/init",
 	// or if the form field "Template" is blank, this template will be used
 	const defaultViewTemplateHTML = `<!DOCTYPE html>
@@ -399,6 +437,10 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 
 		hr {
 			border-top: 1px solid gray;
+		}
+
+		img {
+			margin-bottom: 5px;
 		}
 	</style>
 
@@ -499,7 +541,10 @@ func defaults(w http.ResponseWriter, r *http.Request) {
 	k   := datastore.NewKey(c, "Blog", "singleton", 0, nil)
 	b   := Blog{}
 
-	// If we've received a form post, assume this is an update...
+	// Always clear the cached Blog singleton
+	_ = memcache.Flush(c)
+
+	// If we've received form data, assume this is an update...
 	if r.FormValue("Title") != "" {
 		b = Blog{
 			Description: r.FormValue("Description"),

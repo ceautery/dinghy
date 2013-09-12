@@ -41,6 +41,26 @@
 			}
 		}
 
+		function updateConfig() {
+			$.ajax({
+				url: '/info',
+				type: 'GET',
+				success: showConfigModal,
+				error: function (xhr, ajaxOptions, thrownError) {
+					console.log(thrownError);
+				}
+			});
+		}
+
+		function showConfigModal(blog) {
+			var b = $.parseJSON(blog);
+			$('#blogTitle').val(b.Title);
+			$('#blogAuthor').val(b.Author);
+			$('#blogDescription').val(b.Description);
+			$('#blogTemplate').val(b.Template);
+			$('#configModal').modal('show');
+		}
+
 		function loadPost(id) {
 			$.ajax({
 				url: '/load',
@@ -50,7 +70,7 @@
 					var obj = $.parseJSON(entry);
 					obj.ID = id; // The '/load' function doesn't return an ID
 					$('#hint').html("Update entry");
-					showModal(obj);
+					showPostModal(obj);
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
 					console.log(thrownError);
@@ -62,6 +82,55 @@
 			$('#previewForm input')[0].value = $('#inputTitle').val();
 			$('#previewForm input')[1].value = $('#inputContent').val()
 			$('#previewForm').submit();
+		}
+
+		function verifyTemplate() {
+			// If template is blank, default template from dinghy.go will be
+			// used, so nothing to verify
+			if ( $('#blogTemplate').val() == "" ) {
+				saveConfig();
+				return;
+			}
+
+			$.ajax({
+				url: '/verify',
+				method: 'POST',
+				data: { Template: $('#blogTemplate').val() },
+				success: saveConfig,
+				error: function (xhr, ajaxOptions, thrownError) {
+					alertAndLog("Error compiling template.", xhr);
+				}
+			});
+		}
+
+		function alertAndLog(msg, xhr) {
+			msg += "\n\nPlease check javascript console for error details.";
+			console.log(xhr.responseText);
+			console.log("Server returned HTTP " + xhr.status + ": " + xhr.statusText);
+			alert(msg);
+		}
+
+		function saveConfig() {
+			$('#configModal').off('hide.bs.modal', confirmHide);
+			$('#configModal').modal('hide');
+			$('#configModal').on('hide.bs.modal', confirmHide);
+
+			var data = {
+				Title:       $('#blogTitle').val(),
+				Author:      $('#blogAuthor').val(),
+				Description: $('#blogDescription').val(),
+				Template:    $('#blogTemplate').val()
+			};
+
+			$.ajax({
+				url: '/init',
+				type: 'POST',
+				data: data,
+				success: function(n) { alert("Update successful"); },
+				error: function (xhr, ajaxOptions, thrownError) {
+					alertAndLog("Error updating config.", xhr);
+				}
+			});
 		}
 
 		function savePost() {
@@ -91,14 +160,13 @@
 					loadList(0);
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
-					alert("Error saving post. Check console.");
-					console.log(thrownError);
+					alertAndLog("Error saving post.", xhr);
 				}
 			});
 
 		}
 
-		function showModal(entry) {
+		function showPostModal(entry) {
 			var content = "";
 			if (entry.Lead != null) content += entry.Lead;
 			if (entry.Content != null) content += entry.Content;
@@ -114,13 +182,13 @@
 
 		function newPost() {
 			$('#hint').html("Post new entry");
-			showModal({
+			showPostModal({
 				Hidden: false
 			});
 		}
 
 		function confirmLeave(e) {
-			if ($('#postModal:visible').length) {
+			if ($('#postModal:visible').length || $('#configModal:visible').length) {
 				return 'Changes will be lost, are you sure?';
 			}
 		}
@@ -157,8 +225,9 @@ setting up your blog again if necessary.";
 					}
 				},
 				error: function (xhr, ajaxOptions, thrownError) {
-					console.log(thrownError);
+					alertAndLog("Error saving post.", xhr);
 				}
+
 			});
 
 		}
@@ -183,6 +252,7 @@ setting up your blog again if necessary.";
 
 		function init() {
 			$('#postModal').on('hide.bs.modal', confirmHide);
+			$('#configModal').on('hide.bs.modal', confirmHide);
 			$(window).bind('beforeunload', confirmLeave);
 			loadList(0);
 		}
@@ -202,7 +272,7 @@ setting up your blog again if necessary.";
 	</table>
 </div>
 	<a href="javascript:newPost()" class="btn btn-primary btn">New post</a>
-	<a href="javascript:void(0)" class="btn btn-primary btn">Configure</a>
+	<a href="javascript:updateConfig()" class="btn btn-primary btn">Configure</a>
 	<a href="/" class="btn btn-primary btn">View Blog</a>
 	<div class="modal fade" id="postModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
 		<div class="modal-dialog lift" style="width:100%;">
@@ -245,10 +315,57 @@ setting up your blog again if necessary.";
 			</div>
 		</div>
 	</div>
+
 	<form id="previewForm" action="/preview" method="post" target="_blank">
 		<input type="hidden" name="Title" />
 		<input type="hidden" name="Content" />
 	</form>
+
+	<div class="modal fade" id="configModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		<div class="modal-dialog lift" style="width:100%;">
+			<div class="modal-content">
+				<form class="form-horizontal" action="javascript:verifyTemplate()" role="form">
+					<div class="modal-header">
+						<button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+						<h4 class="modal-title">Update Blog Settings</h4>
+					</div>
+					<div class="modal-body">
+	        	
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="blogTitle">Blog Title</label>
+							<div class="col-sm-11">
+								<input type="text" class="form-control" name="Title" id="blogTitle" placeholder="Blog Title">
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="blogAuthor">Author</label>
+							<div class="col-sm-11">
+								<input type="text" class="form-control" name="Author" id="blogAuthor" placeholder="Author">
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="blogDescription">Description</label>
+							<div class="col-sm-11">
+								<input type="text" class="form-control" name="Description" id="blogDescription" placeholder="Description">
+							</div>
+						</div>
+						<div class="form-group">
+							<label class="col-sm-1 control-label" for="blogTemplate">Template</label>
+							<div class="col-sm-11">
+								<textarea class="form-control" name="Template" id="blogTemplate" rows=24></textarea>
+							</div>
+						</div>
+	        	
+					</div>
+					<div class="modal-footer lift">
+						<button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+						<button type="submit" class="btn btn-primary">Save</button>
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
 	<script src="/static/jquery/jquery-2.0.3.min.js"></script>
 	<script src="/static/bootstrap/js/bootstrap.min.js"></script>
 </body>
