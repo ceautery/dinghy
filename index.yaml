@@ -12,6 +12,21 @@ indexes:
 
 - kind: Post
   properties:
+  - name: Date
+    direction: desc
+  - name: Lead
+  - name: Title
+
+- kind: Post
+  properties:
   - name: Hidden
   - name: Date
     direction: desc
+
+- kind: Post
+  properties:
+  - name: Hidden
+  - name: Date
+    direction: desc
+  - name: Lead
+  - name: Title

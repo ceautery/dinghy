@@ -236,9 +236,7 @@ func getPosts(num, start int, details bool, c appengine.Context) ([]Post, error)
 	}
 
 	if details {
-		// Bug in SDK 1.8.3 with dates in projection queries,
-		// so we'll just grab all columns instead
-		// q = q.Project("Title", "Lead", "Date")
+		q = q.Project("Title", "Lead", "Date")
 	} else {
 		q = q.Project("Title")
 	}
