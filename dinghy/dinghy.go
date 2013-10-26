@@ -34,6 +34,7 @@ type Blog struct {
 	Template    string `datastore:",noindex"`
 	Posts       []Post `datastore:"-"`
 	Admin       bool   `datastore:"-"`
+	PostTitle   string `datastore:"-"`
 }
 
 func init() {
@@ -137,6 +138,7 @@ func view(w http.ResponseWriter, r *http.Request) {
 
 		p, err := getPost(path, c)
 		b.Posts[0] = p
+		b.PostTitle = p.Title
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -420,7 +422,11 @@ func config(w http.ResponseWriter, r *http.Request) {
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-	<title>{{.Title}}</title>
+		{{if .PostTitle}}
+			<title>{{.PostTitle}}</title>
+		{{else}}
+			<title>{{.Title}}</title>
+		{{end}}
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="description" content="{{.Description}}">
 	<meta name="author" content="{{.Author}}">

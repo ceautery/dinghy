@@ -144,7 +144,8 @@ func doCodeBlocks(s string) string {
 	return re.ReplaceAllStringFunc(s, func(m string) string {
 		var buffer bytes.Buffer
 		buffer.WriteString("\n\n<pre><code>")
-		buffer.WriteString( strings.TrimSpace( encodeCode( outdent(m) ) ) )
+		// buffer.WriteString( strings.TrimSpace( encodeCode( outdent(m) ) ) )
+		buffer.WriteString( strings.Trim( encodeCode( outdent(m) ), "\n" ) )
 		buffer.WriteString("\n</code></pre>\n\n")
 		m = blockToMD5( buffer.String() )
 		g_html_blocks[m] = buffer.String()
