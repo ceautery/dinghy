@@ -18,12 +18,13 @@ import (
 )
 
 type Post struct {
-	Title   string
-	Lead    string
-	Content string    `datastore:",noindex"`
-	ID      int64     `datastore:"-"`
-	Date    time.Time
-	Hidden	bool
+	Title       string
+	Description string
+	Lead        string
+	Content     string    `datastore:",noindex"`
+	ID          int64     `datastore:"-"`
+	Date        time.Time
+	Hidden	    bool
 }
 
 // A singleton datastore object containing a blog description
@@ -34,7 +35,6 @@ type Blog struct {
 	Template    string `datastore:",noindex"`
 	Posts       []Post `datastore:"-"`
 	Admin       bool   `datastore:"-"`
-	PostTitle   string `datastore:"-"`
 }
 
 func init() {
@@ -138,7 +138,8 @@ func view(w http.ResponseWriter, r *http.Request) {
 
 		p, err := getPost(path, c)
 		b.Posts[0] = p
-		b.PostTitle = p.Title
+		b.Title = p.Title
+		b.Description = p.Description
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -320,8 +321,9 @@ func load(w http.ResponseWriter, r *http.Request) {
 func post(w http.ResponseWriter, r *http.Request) {
 	c := appengine.NewContext(r)
 	p := Post{
-		Title: r.FormValue("Title"),
-		Date:  time.Now(),
+		Title:       r.FormValue("Title"),
+		Description: r.FormValue("Description"),
+		Date:        time.Now(),
 	}
 
 	content := r.FormValue("Content")
@@ -422,13 +424,11 @@ func config(w http.ResponseWriter, r *http.Request) {
 <html lang="en">
 <head>
 	<meta charset="utf-8">
-		{{if .PostTitle}}
-			<title>{{.PostTitle}}</title>
-		{{else}}
-			<title>{{.Title}}</title>
-		{{end}}
+	<title>{{.Title}}</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<meta name="description" content="{{.Description}}">
+	{{if .Description}}
+		<meta name="description" content="{{.Description}}">
+	{{end}}
 	<meta name="author" content="{{.Author}}">
 
 	<link href="/static/bootstrap/css/bootstrap.min.css" rel="stylesheet">
