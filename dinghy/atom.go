@@ -105,7 +105,7 @@ func feed(w http.ResponseWriter, r *http.Request) {
 		Xmlns:   "http://www.w3.org/2005/Atom",
 		Title:   b.Title,
 		Id:      "tag:" + host + ",2013:dinghyBlog",
-		Updated: now.Format("2006-01-02T15:04:05.000-0700"),
+		Updated: now.Format("2006-01-02T15:04:05.000Z"),
 		Author:  &Author{ Name: b.Author },
 		Links:   &[]Link{
 			Link{ Rel: "self", Href: "http://" + host + "/atom.xml" },
@@ -127,7 +127,7 @@ func feed(w http.ResponseWriter, r *http.Request) {
 			Title:    post.Title,
 			Summary:  post.Description,
 			Id:       f.Id + ".post-" + idStr,
-			Updated:  post.Date.Format("2006-01-02T15:04:05.000-0700"),
+			Updated:  post.Date.Format("2006-01-02T15:04:05.000Z"),
 			Links:    &[]Link{
 				Link{Rel: "alternate", Href: "http://" + host + "/" + idStr, Title: post.Title},
 			},
