@@ -55,6 +55,7 @@ func init() {
 //	http.HandleFunc("/oauth2callback", callback)
 
 	// Normal blog viewing
+	http.HandleFunc("/atom.xml", feed)
 	http.HandleFunc("/", view)
 }
 
