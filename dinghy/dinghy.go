@@ -431,6 +431,7 @@ func config(w http.ResponseWriter, r *http.Request) {
 	{{ else }}
 		<title>{{.Title}}</title>
 		<meta name="description" content="{{.Description}}">
+		<link rel="alternate" type="application/atom+xml" title="{{.Title}}" href="atom.xml" />
 	{{ end }}
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<meta name="author" content="{{.Author}}">

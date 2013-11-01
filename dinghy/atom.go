@@ -108,8 +108,8 @@ func feed(w http.ResponseWriter, r *http.Request) {
 		Updated: now.Format("2006-01-02T15:04:05.000-0700"),
 		Author:  &Author{ Name: b.Author },
 		Links:   &[]Link{
-			Link{ Rel: "self", Href: host + "/atom.xml" },
-			Link{ Rel: "alternate", Href: host + "/" },
+			Link{ Rel: "self", Href: "http://" + host + "/atom.xml" },
+			Link{ Rel: "alternate", Href: "http://" + host + "/" },
 		},
 	}
 
@@ -129,7 +129,7 @@ func feed(w http.ResponseWriter, r *http.Request) {
 			Id:       f.Id + ".post-" + idStr,
 			Updated:  post.Date.Format("2006-01-02T15:04:05.000-0700"),
 			Links:    &[]Link{
-				Link{Rel: "alternate", Href: host + "/" + idStr, Title: post.Title},
+				Link{Rel: "alternate", Href: "http://" + host + "/" + idStr, Title: post.Title},
 			},
 			Content: &Content{Content: markdown(post.Lead, post.Content), Type: "html"},
 		}
