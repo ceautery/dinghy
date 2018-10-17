@@ -7,7 +7,7 @@ The design goals were a small codebase, a simple editor with markdown support, a
 
 A sample blog using this engine is available at <http://curtisautery.appspot.com/>.
 
-##The name
+## The name
 
 I acknowledge that "Dinghy" has some comedic value to people who are smart alecks and not experienced seafarers (both are true of the author), however the name is indicative of the design goals. A dinghy is:
 
@@ -18,7 +18,7 @@ I acknowledge that "Dinghy" has some comedic value to people who are smart aleck
 
 Stretching the analogy a little further, your writing is the ship. The important piece.
 
-##Goals
+## Goals
 
 * Flesh out admin interface to allow editing the blog details and display template. 
 This should be completed in the next build.
@@ -27,6 +27,6 @@ This should be completed in the next build.
 * Add support for Picasa and Flickr shortlinks
 * ???
 
-##Author
+## Author
 
 Curtis Autery
